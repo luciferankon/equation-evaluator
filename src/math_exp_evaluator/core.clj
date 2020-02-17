@@ -41,10 +41,11 @@
     MUL = expr <'*'> NUMBER
     DIV = expr <'/'> NUMBER
     NUMBER = #'[0-9]'+
-    VAR = #'[a-z]'+ #'[0-9]'*"))
+    VAR = #'[a-z]'+"))
 
 (defn evaluate [eq x]
-  (let [lookup-table {:x2 x :x x}]
+  (let [lookup-table {:x x}
+        rhs (last (clojure.string/split eq #"="))]
     (insta/transform
       {:ADD +, :SUB -, :MUL *, :DIV /,
        :VAR (fn [& args] (->> args
@@ -54,7 +55,7 @@
        :NUMBER (fn [& args] (->> args
                                  (clojure.string/join nil)
                                  read-string)),
-       :S identity} (expression eq))))
+       :S identity} (expression rhs))))
 
 (defn get-points
   [eq x-range]
