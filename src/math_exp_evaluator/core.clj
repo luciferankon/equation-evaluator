@@ -1,45 +1,23 @@
 (ns math-exp-evaluator.core
   (:require [instaparse.core :as insta]))
 
-;(def math-expression
-;  (insta/parser
-;    "<S> = LHS EQUAL RHS
-;    <LHS> = E <MAYBESPACE>
-;    <RHS> = <MAYBESPACE> E
-;    MAYBESPACE = ' ' | EPSILON
-;    EQUAL = '='
-;    <E> = NUM (E | EPSILON) | VAR (E | EPSILON) | E <MAYBESPACE> OPERATOR <MAYBESPACE> E | PE
-;    <OPERATOR> = ADD | SUB | MUL | DIV
-;    ADD = <'+'>
-;    SUB = <'-'>
-;    MUL = <'*'>
-;    DIV = <'/'>
-;    PE = \"(\" E \")\"
-;    NUM = #'[0-9]'+
-;    VAR = #'[A-z]'"))
-
-;(def arithmetic
-;  (insta/parser
-;    "expr = add-sub
-;     <add-sub> = mul-div | add | sub
-;     add = add-sub <'+'> mul-div
-;     sub = add-sub <'-'> mul-div
-;     <mul-div> = term | mul | div
-;     mul = mul-div <'*'> term
-;     div = mul-div <'/'> term
-;     <term> = number | <'('> add-sub <')'>
-;     number = #'[0-9]+'"))
-
 (def expression
   (insta/parser
-    "S = expr
-    <expr> = NUMBER | VAR | ADD-SUB
+    "S = <MAYBESPACE> expr
+    <expr> = VAR-NUM | ADD-SUB
     <ADD-SUB> = MUL-DIV | ADD | SUB
-    <MUL-DIV> = NUMBER | MUL | DIV
-    ADD = expr <'+'> MUL-DIV
-    SUB = expr <'-'> MUL-DIV
-    MUL = expr <'*'> NUMBER
-    DIV = expr <'/'> NUMBER
+    <MUL-DIV> = TRIGOFUNC | POWER | MUL | DIV
+    <TRIGOFUNC> = VAR-NUM | SIN | COS | TAN
+    ADD = expr <MAYBESPACE '+' MAYBESPACE> MUL-DIV
+    SUB = expr <MAYBESPACE '-' MAYBESPACE> MUL-DIV | <'-'> MUL-DIV
+    MUL = expr <MAYBESPACE '*' MAYBESPACE> MUL-DIV | NUMBER VAR
+    DIV = expr <MAYBESPACE '/' MAYBESPACE> MUL-DIV
+    POWER = expr <MAYBESPACE '^' MAYBESPACE> VAR-NUM
+    SIN = <'sin'> VAR-NUM
+    COS = <'cos'> VAR-NUM
+    TAN = <'tan'> VAR-NUM
+    <VAR-NUM> = NUMBER | VAR
+    MAYBESPACE = ' ' | EPSILON
     NUMBER = #'[0-9]'+
     VAR = #'[a-z]'+"))
 
@@ -47,15 +25,19 @@
   (let [lookup-table {:x x}
         rhs (last (clojure.string/split eq #"="))]
     (insta/transform
-      {:ADD +, :SUB -, :MUL *, :DIV /,
-       :VAR (fn [& args] (->> args
-                              (clojure.string/join nil)
-                              keyword
-                              lookup-table)),
+      {:ADD    +, :SUB -, :MUL *, :DIV /,
+       :POWER  (fn [x p] (Math/pow x p)),
+       :SIN    (fn [x] (Math/sin x)),
+       :COS    (fn [x] (Math/cos x)),
+       :TAN    (fn [x] (Math/tan x)),
+       :VAR    (fn [& args] (->> args
+                                 (apply str)
+                                 keyword
+                                 lookup-table)),
        :NUMBER (fn [& args] (->> args
-                                 (clojure.string/join nil)
+                                 (apply str)
                                  read-string)),
-       :S identity} (expression rhs))))
+       :S      identity} (expression rhs))))
 
 (defn get-points
   [eq x-range]
