@@ -9,7 +9,10 @@
   (println request)
   {:status  200
    :headers {"Content-Type" "application/json"}
-   :body    (get-points ((:body request) "eq") (eval (read-string ((:body request) "range"))))})
+   :body    (let [req-body (:body request)]
+              (get-points (-> "eq"
+                              req-body
+                              remove-spaces) (eval (read-string ((:body request) "range")))))})
 
 (defn -main []
   (let [port (Integer/parseInt (or (System/getenv "PORT") "3000"))]

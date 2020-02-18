@@ -16,14 +16,13 @@
     SIN = <'sin'> VAR-NUM
     COS = <'cos'> VAR-NUM
     TAN = <'tan'> VAR-NUM
-    <VAR-NUM> = NUMBER | VAR
+    <VAR-NUM> = NUMBER | VAR | <'('> ADD-SUB <')'>
     MAYBESPACE = ' ' | EPSILON
     NUMBER = #'[0-9]'+
     VAR = #'[a-z]'+"))
 
-(defn evaluate [eq x]
-  (let [lookup-table {:x x}
-        rhs (last (clojure.string/split eq #"="))]
+(defn evaluate [rhs x]
+  (let [lookup-table {:x x :y x}]
     (insta/transform
       {:ADD    +, :SUB -, :MUL *, :DIV /,
        :POWER  (fn [x p] (Math/pow x p)),
@@ -39,6 +38,23 @@
                                  read-string)),
        :S      identity} (expression rhs))))
 
+(defn rectify-range [range]
+  (map #(->> %
+             float
+             (format "%.1f")
+             Double/parseDouble) range))
+
+(defn create-point [sym val1 val2]
+  {sym val1 (sym {:x :y :y :x}) val2})
+
+(defn remove-spaces [text]
+  (->> text
+       (remove (partial = \space))
+       (apply str)))
+
 (defn get-points
   [eq x-range]
-  (map #(vector % (evaluate eq %)) x-range))
+  (let [sides (clojure.string/split eq #"=")
+        rhs (last sides)
+        lhs (first sides)]
+    (map #(create-point (keyword lhs) (evaluate rhs %) %) (rectify-range x-range))))
