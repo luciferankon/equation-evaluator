@@ -3,26 +3,25 @@
 
 (def expression
   (insta/parser
-    "S = <MAYBESPACE> expr
+    "S = expr
     <expr> = VAR-NUM | ADD-SUB
     <ADD-SUB> = MUL-DIV | ADD | SUB
     <MUL-DIV> = TRIGOFUNC | POWER | MUL | DIV
     <TRIGOFUNC> = VAR-NUM | SIN | COS | TAN
-    ADD = expr <MAYBESPACE '+' MAYBESPACE> MUL-DIV
-    SUB = expr <MAYBESPACE '-' MAYBESPACE> MUL-DIV | <'-'> MUL-DIV
-    MUL = expr <MAYBESPACE '*' MAYBESPACE> MUL-DIV | NUMBER VAR
-    DIV = expr <MAYBESPACE '/' MAYBESPACE> MUL-DIV
-    POWER = expr <MAYBESPACE '^' MAYBESPACE> VAR-NUM
+    ADD = expr <'+'> MUL-DIV
+    SUB = expr <'-'> MUL-DIV | <'-'> MUL-DIV
+    MUL = expr <'*'> MUL-DIV | NUMBER VAR | VAR-NUM TRIGOFUNC
+    DIV = expr <'/'> MUL-DIV
+    POWER = expr <'^'> VAR-NUM
     SIN = <'sin'> VAR-NUM
     COS = <'cos'> VAR-NUM
     TAN = <'tan'> VAR-NUM
     <VAR-NUM> = NUMBER | VAR | <'('> ADD-SUB <')'>
-    MAYBESPACE = ' ' | EPSILON
-    NUMBER = #'[0-9]'+
-    VAR = #'[a-z]'+"))
+    NUMBER = #'[0-9]'+('.'#'[0-9]'+)?
+    VAR = #'[a-z]'"))
 
-(defn evaluate [rhs x]
-  (let [lookup-table {:x x :y x}]
+(defn evaluate [rhs x rhs-var]
+  (let [lookup-table {rhs-var x}]
     (insta/transform
       {:ADD    +, :SUB -, :MUL *, :DIV /,
        :POWER  (fn [x p] (Math/pow x p)),
@@ -44,8 +43,13 @@
              (format "%.1f")
              Double/parseDouble) range))
 
+(defn get-alternate-symbol
+  [sym]
+  (sym {:x :y :y :x}))
+
 (defn create-point [sym val1 val2]
-  {sym val1 (sym {:x :y :y :x}) val2})
+  (when-not (= (type val1) instaparse.gll.Failure)
+    {sym val1 (get-alternate-symbol sym) val2}))
 
 (defn remove-spaces [text]
   (->> text
@@ -57,4 +61,4 @@
   (let [sides (clojure.string/split eq #"=")
         rhs (last sides)
         lhs (first sides)]
-    (map #(create-point (keyword lhs) (evaluate rhs %) %) (rectify-range x-range))))
+    (map #(create-point (keyword lhs) (evaluate rhs % (get-alternate-symbol (keyword lhs))) %) (rectify-range x-range))))
